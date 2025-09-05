@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WinMix — Mérkőzés szűrő és statisztikák</title>
+  <meta name="description" content="Mérkőzés szűrés, statisztikák és CSV export.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="antialiased text-zinc-100 bg-[#0a0a12]">
+  <!-- Background 3D Spline -->
+  <div class="spline-container fixed top-0 w-full h-screen -z-10">
+    <iframe src="https://my.spline.design/aidatamodelinteraction-mdTL3FktFVHgDvFr5TKtnYDV" frameborder="0" width="100%" height="100%" id="aura-spline"></iframe>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="rounded-xl ring-1 ring-white/10 bg-[#0c0f16] px-6 py-4 flex items-center gap-3">
+      <span class="inline-flex h-6 w-6 rounded-full border-2 border-white/20 border-t-violet-400 animate-spin"></span>
+      <span class="text-sm text-zinc-200">Adatok betöltése...</span>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[70] space-y-2"></div>
+
+  <!-- Background glows -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden">
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[1100px] rounded-full blur-3xl opacity-35 bg-[radial-gradient(closest-side,rgba(138,92,246,0.5),rgba(10,10,18,0))]"></div>
+    <div class="absolute -bottom-20 -right-20 w-[800px] h-[800px] rounded-full blur-3xl opacity-30 bg-[radial-gradient(closest-side,rgba(99,102,241,0.4),rgba(10,10,18,0))]"></div>
+  </div>
+
+  <!-- Header / Nav -->
+  <header class="relative z-50 sticky top-0 backdrop-blur-xl bg-[#0a0a12]/80 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <a href="#" class="flex items-center gap-3">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-[0_0_0_2px_rgba(255,255,255,0.06)_inset]">
+            <i data-lucide="asterisk" class="text-white" style="width:16px; height:16px; stroke-width:1.5;"></i>
+          </span>
+          <span class="text-lg font-semibold tracking-tight">WinMix</span>
+        </a>
+
+        <nav class="hidden md:flex gap-1 border border-white/5 rounded-full px-3 items-center">
+          <a href="#" class="px-3 py-2 text-sm font-medium text-zinc-300 hover:text-white">Mérkőzések</a>
+          <a href="#stats" class="px-3 py-2 text-sm font-medium text-zinc-300 hover:text-white">Statisztikák</a>
+          <a href="#results" class="px-3 py-2 text-sm font-medium text-zinc-300 hover:text-white">Eredmények</a>
+        </nav>
+
+        <div class="flex gap-2 items-center">
+          <button type="button" id="extendedStatsBtnHeader" class="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-zinc-200 border border-white/10 rounded-md px-3 py-2 hover:bg-white/5">
+            <i data-lucide="chart-line" style="width:18px; height:18px; stroke-width:1.5;"></i>
+            Bővített stat.
+          </button>
+          <button type="button" id="applyBtnMain" class="group relative inline-flex transition duration-300 ease-out select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 text-white rounded-md p-[1px] items-center justify-center shadow-[0_8px_16px_-4px_rgba(151,65,252,0.2)] hover:shadow-[0_12px_24px_-6px_rgba(151,65,252,0.3)]" style="background-image: linear-gradient(144deg,#AF40FF, #5B42F3 50%, #00DDEB);">
+            <span class="flex items-center justify-center gap-2 text-[14px] leading-none h-full w-full transition-colors duration-300 group-hover:bg-transparent font-medium bg-[#0b0f17] rounded-md px-4 py-2">
+              <i data-lucide="search" style="width:20px; height:20px; stroke-width:1.5;"></i>
+              <span>Keresés</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="relative z-10">
+    <section class="bg-black/20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div class="text-center space-y-3">
+          <h1 class="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-white">Mérkőzés szűrő és statisztikák</h1>
+          <p class="max-w-2xl mx-auto text-sm sm:text-base text-zinc-300">
+            Szűrd a meccseket csapatokra és eseményekre, elemezd a kimeneteleket, és exportáld CSV-be.
+          </p>
+        </div>
+
+        <!-- Filters -->
+        <div class="mt-8 ring-1 ring-white/10 bg-white/5 rounded-2xl backdrop-blur">
+          <div class="px-4 sm:px-6 py-4 sm:py-5 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-zinc-300">
+              <i data-lucide="filter" style="width:18px; height:18px; stroke-width:1.5;"></i>
+              <span class="text-sm font-medium">Szűrők</span>
+            </div>
+            <div class="hidden sm:flex items-center gap-3">
+              <button id="applyBtn" class="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-white bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full px-4 py-2.5 shadow-lg hover:shadow-[0_12px_24px_-6px_rgba(139,92,246,0.4)] hover:-translate-y-0.5 transform-gpu transition">
+                <i data-lucide="sliders-horizontal" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                Szűrés
+              </button>
+              <button id="resetBtn" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-200 border border-white/10 rounded-full px-4 py-2.5 hover:bg-white/5">
+                <i data-lucide="rotate-ccw" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                Visszaállítás
+              </button>
+              <button id="exportBtn" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-200 border border-white/10 rounded-full px-4 py-2.5 hover:bg-white/5">
+                <i data-lucide="download" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                CSV Export
+              </button>
+            </div>
+          </div>
+          <div class="px-4 sm:px-6 py-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <!-- Hazai csapat -->
+              <div class="relative" data-dropdown="home">
+                <label class="block text-xs text-zinc-400 mb-1.5">Hazai csapat</label>
+                <button type="button" data-trigger="" class="w-full flex items-center justify-between rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2.5 hover:bg-white/10">
+                  <div class="flex items-center gap-2 truncate">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 ring-1 ring-white/20">
+                      <i data-lucide="home" class="text-white" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                    </span>
+                    <span class="text-sm text-zinc-200 font-medium truncate" data-label="">Válassz hazai csapatot</span>
+                  </div>
+                  <i data-lucide="chevron-down" class="text-zinc-300" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                </button>
+                <div data-menu="" class="hidden absolute z-20 mt-2 w-full rounded-xl ring-1 ring-white/10 bg-[#0c0f16] shadow-2xl overflow-hidden">
+                  <div class="max-h-60 overflow-y-auto divide-y divide-white/5" data-options=""></div>
+                </div>
+              </div>
+
+              <!-- Vendég csapat -->
+              <div class="relative" data-dropdown="away">
+                <label class="block text-xs text-zinc-400 mb-1.5">Vendég csapat</label>
+                <button type="button" data-trigger="" class="w-full flex items-center justify-between rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2.5 hover:bg-white/10">
+                  <div class="flex items-center gap-2 truncate">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-fuchsia-500 to-violet-600 ring-1 ring-white/20">
+                      <i data-lucide="flag" class="text-white" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                    </span>
+                    <span class="text-sm text-zinc-200 font-medium truncate" data-label="">Válassz vendég csapatot</span>
+                  </div>
+                  <i data-lucide="chevron-down" class="text-zinc-300" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                </button>
+                <div data-menu="" class="hidden absolute z-20 mt-2 w-full rounded-xl ring-1 ring-white/10 bg-[#0c0f16] shadow-2xl overflow-hidden">
+                  <div class="max-h-60 overflow-y-auto divide-y divide-white/5" data-options=""></div>
+                </div>
+              </div>
+
+              <!-- BTTS -->
+              <div class="relative" data-dropdown="btts">
+                <label class="block text-xs text-zinc-400 mb-1.5">Mindkét csapat gólt szerzett</label>
+                <button type="button" data-trigger="" class="w-full flex items-center justify-between rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2.5 hover:bg-white/10">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
+                      <i data-lucide="goal" class="text-zinc-200" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                    </span>
+                    <span class="text-sm text-zinc-200 font-medium" data-label="">Válassz: Igen / Nem</span>
+                  </div>
+                  <i data-lucide="chevron-down" class="text-zinc-300" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                </button>
+                <div data-menu="" class="hidden absolute z-20 mt-2 w-full rounded-xl ring-1 ring-white/10 bg-[#0c0f16] shadow-2xl overflow-hidden">
+                  <div class="max-h-60 overflow-y-auto divide-y divide-white/5" data-options=""></div>
+                </div>
+              </div>
+
+              <!-- Fordítás -->
+              <div class="relative" data-dropdown="comeback">
+                <label class="block text-xs text-zinc-400 mb-1.5">Fordítás történt</label>
+                <button type="button" data-trigger="" class="w-full flex items-center justify-between rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2.5 hover:bg-white/10">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
+                      <i data-lucide="shuffle" class="text-zinc-200" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                    </span>
+                    <span class="text-sm text-zinc-200 font-medium" data-label="">Válassz: Igen / Nem</span>
+                  </div>
+                  <i data-lucide="chevron-down" class="text-zinc-300" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                </button>
+                <div data-menu="" class="hidden absolute z-20 mt-2 w-full rounded-xl ring-1 ring-white/10 bg-[#0c0f16] shadow-2xl overflow-hidden">
+                  <div class="max-h-60 overflow-y-auto divide-y divide-white/5" data-options=""></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mobile buttons -->
+            <div class="mt-4 flex sm:hidden items-center gap-3">
+              <button id="applyBtnMobile" class="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-white bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full px-4 py-2.5 shadow-lg">
+                <i data-lucide="sliders-horizontal" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                Szűrés
+              </button>
+              <button id="resetBtnMobile" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-200 border border-white/10 rounded-full px-4 py-2.5">
+                <i data-lucide="rotate-ccw" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                Visszaállítás
+              </button>
+              <button id="exportBtnMobile" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-200 border border-white/10 rounded-full px-4 py-2.5">
+                <i data-lucide="download" style="width:18px; height:18px; stroke-width:1.5;"></i>
+                CSV Export
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <section id="stats" class="mt-10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Statisztikák</h2>
+            <div class="flex items-center gap-2">
+              <button id="extendedStatsBtn" class="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-zinc-200 border border-white/10 rounded-full px-3 py-1.5 hover:bg-white/5">
+                <i data-lucide="chart-line" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                Bővített statisztika
+              </button>
+              <div class="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
+                <i data-lucide="info" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                <span>Szűrt eredmények alapján</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="rounded-2xl ring-1 ring-white/10 bg-white/5 px-4 py-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-zinc-400">Összes mérkőzés</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10">
+                  <i data-lucide="list" class="text-zinc-200" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                </span>
+              </div>
+              <p id="statTotal" class="mt-2 text-2xl font-semibold tracking-tight">0</p>
+            </div>
+            <div class="rounded-2xl ring-1 ring-white/10 bg-white/5 px-4 py-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-zinc-400">Hazai győzelem</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/15 to-emerald-400/10 ring-1 ring-emerald-400/30">
+                  <i data-lucide="circle-dot" class="text-emerald-300" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                </span>
+              </div>
+              <p id="statHome" class="mt-2 text-2xl font-semibold tracking-tight">0</p>
+            </div>
+            <div class="rounded-2xl ring-1 ring-white/10 bg-white/5 px-4 py-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-zinc-400">Döntetlen</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/15 to-amber-400/10 ring-1 ring-amber-400/30">
+                  <i data-lucide="minus" class="text-amber-300" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                </span>
+              </div>
+              <p id="statDraw" class="mt-2 text-2xl font-semibold tracking-tight">0</p>
+            </div>
+            <div class="rounded-2xl ring-1 ring-white/10 bg-white/5 px-4 py-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-zinc-400">Vendég győzelem</span>
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/15 to-sky-400/10 ring-1 ring-sky-400/30">
+                  <i data-lucide="circle" class="text-sky-300" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                </span>
+              </div>
+              <p id="statAway" class="mt-2 text-2xl font-semibold tracking-tight">0</p>
+            </div>
+          </div>
+
+          <!-- Részletes statisztika -->
+          <div class="mt-6 ring-1 ring-white/10 bg-white/5 rounded-2xl p-4 sm:p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xl font-semibold tracking-tight text-white">Részletes statisztika</h3>
+              <div class="text-xs text-zinc-400 flex items-center gap-2">
+                <i data-lucide="chart-no-axes-column" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                <span>Megoszlások</span>
+              </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="rounded-xl ring-1 ring-white/10 bg-white/5 p-4">
+                <p class="text-sm text-zinc-300 mb-2">Eredmény megoszlás (H/D/V)</p>
+                <div class="rounded-lg bg-white/[0.03] ring-1 ring-white/10 p-3">
+                  <div class="relative h-56">
+                    <canvas id="chartResults"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-xl ring-1 ring-white/10 bg-white/5 p-4">
+                <p class="text-sm text-zinc-300 mb-2">BTTS (Mindkét csapat gólt szerzett)</p>
+                <div class="rounded-lg bg-white/[0.03] ring-1 ring-white/10 p-3">
+                  <div class="relative h-56">
+                    <canvas id="chartBTTS"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Results -->
+        <section id="results" class="mt-10">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Listázott eredmények</h2>
+              <span id="listedCount" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300">
+                <i data-lucide="table" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                Mérkőzések: 0
+              </span>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
+              <i data-lucide="calendar" style="width:16px; height:16px; stroke-width:1.5;"></i>
+              <span>Supabase adatbázis</span>
+            </div>
+          </div>
+
+          <!-- Pagination Controls (Top) -->
+          <div id="paginationTop" class="hidden mb-4 flex items-center justify-between bg-white/5 ring-1 ring-white/10 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-zinc-400">Mérkőzések oldalanként:</span>
+              <select id="itemsPerPage" class="bg-white/10 ring-1 ring-white/20 rounded-md px-2 py-1 text-sm text-zinc-200 border-none">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="prevPageTop" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-200 border border-white/10 rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="chevron-left" style="width:16px; height:16px;"></i>
+                Előző
+              </button>
+              <span id="pageInfoTop" class="px-3 py-1.5 text-sm text-zinc-300 bg-white/10 rounded-md"></span>
+              <button id="nextPageTop" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-200 border border-white/10 rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                Következő
+                <i data-lucide="chevron-right" style="width:16px; height:16px;"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-hidden rounded-2xl ring-1 ring-white/10 bg-white/5">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-white/5 text-zinc-300">
+                  <tr class="border-b border-white/10">
+                    <th data-sort-key="home" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Hazai csapat
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                    <th data-sort-key="away" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Vendég csapat
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                    <th data-sort-key="ht" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Félidő eredmény
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                    <th data-sort-key="ft" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Végeredmény
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                    <th data-sort-key="btts" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Mindkét csapat gólt szerzett
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                    <th data-sort-key="comeback" class="text-left font-medium px-4 py-3 cursor-pointer select-none hover:bg-white/5">
+                      <div class="inline-flex items-center gap-1">
+                        Fordítás
+                        <i data-lucide="chevrons-up-down" class="opacity-60" style="width:14px; height:14px; stroke-width:1.5;"></i>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody" class="divide-y divide-white/5"></tbody>
+              </table>
+            </div>
+            <div id="noResultsMessage" class="hidden px-6 py-10 text-center text-sm text-zinc-300">
+              <div class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-white/5 ring-1 ring-white/10 mb-3">
+                <i data-lucide="search" style="width:18px; height:18px; stroke-width:1.5;"></i>
+              </div>
+              Nincs találat a megadott szűrőkkel. Módosítsd a feltételeket.
+            </div>
+          </div>
+
+          <!-- Pagination Controls (Bottom) -->
+          <div id="paginationBottom" class="hidden mt-4 flex items-center justify-between bg-white/5 ring-1 ring-white/10 rounded-lg px-4 py-3">
+            <div class="flex items-center gap-3 text-sm text-zinc-400">
+              <span>Összesen: <span id="totalItems" class="font-medium text-zinc-200">0</span> mérkőzés</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="prevPageBottom" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-200 border border-white/10 rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="chevron-left" style="width:16px; height:16px;"></i>
+                Előző
+              </button>
+              <span id="pageInfoBottom" class="px-3 py-1.5 text-sm text-zinc-300 bg-white/10 rounded-md"></span>
+              <button id="nextPageBottom" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-200 border border-white/10 rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                Következő
+                <i data-lucide="chevron-right" style="width:16px; height:16px;"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="relative z-10 border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600">
+            <i data-lucide="asterisk" class="text-white" style="width:16px; height:16px; stroke-width:1.5;"></i>
+          </span>
+          <span class="text-sm font-medium text-zinc-300">© 2025 winmix.hu</span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-zinc-400">
+          <a href="#" class="hover:text-zinc-200">Adatvédelem</a>
+          <a href="#" class="hover:text-zinc-200">Felhasználási feltételek</a>
+          <a href="#" class="hover:text-zinc-200">Kapcsolat</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Extended Statistics Modal -->
+  <div id="extendedStatsModal" class="fixed z-[80] inset-0 hidden">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="relative mx-auto my-10 w-full max-w-3xl px-4">
+      <div class="rounded-2xl ring-1 ring-white/10 bg-[#0c0f16] shadow-2xl overflow-hidden">
+        <div class="px-6 pt-6 pb-4 border-b border-white/10">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="chart-line" class="text-violet-300" style="width:20px; height:20px; stroke-width:1.5;"></i>
+              <h3 class="text-2xl font-semibold tracking-tight">Bővített statisztika</h3>
+            </div>
+            <button id="closeModalX" class="text-zinc-400 hover:text-zinc-200">
+              <i data-lucide="x" style="width:22px; height:22px; stroke-width:1.5;"></i>
+            </button>
+          </div>
+
+          <div id="selectedTeams" class="mt-6 grid grid-cols-1 sm:grid-cols-3 items-center gap-4 rounded-xl bg-white/5 ring-1 ring-white/10 p-4">
+            <div id="homeTeamInfo" class="flex items-center gap-3">
+              <img src="" alt="Hazai csapat logó" class="h-10 w-10 rounded-full ring-1 ring-white/10 object-cover">
+              <div>
+                <div class="font-medium text-white"></div>
+                <div class="text-xs text-zinc-400">Hazai csapat</div>
+              </div>
+            </div>
+            <div class="text-center">
+              <span class="inline-flex items-center gap-2 text-zinc-300">
+                <i data-lucide="circle-dot" style="width:16px; height:16px; stroke-width:1.5;"></i>
+                vs
+                <i data-lucide="circle" style="width:16px; height:16px; stroke-width:1.5;"></i>
+              </span>
+            </div>
+            <div id="awayTeamInfo" class="flex items-center justify-end gap-3">
+              <div class="text-right">
+                <div class="font-medium text-white"></div>
+                <div class="text-xs text-zinc-400">Vendég csapat</div>
+              </div>
+              <img src="" alt="Vendég csapat logó" class="h-10 w-10 rounded-full ring-1 ring-white/10 object-cover">
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-6">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 p-4 text-center">
+              <div id="totalMatches" class="text-2xl font-semibold tracking-tight text-emerald-300">0</div>
+              <div class="text-xs text-emerald-200 mt-1">Mérkőzések száma</div>
+            </div>
+            <div class="rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 p-4 text-center">
+              <div id="homeWins" class="text-2xl font-semibold tracking-tight text-emerald-300">0</div>
+              <div class="text-xs text-emerald-200 mt-1">Hazai győzelmek</div>
+            </div>
+            <div class="rounded-xl bg-amber-500/10 ring-1 ring-amber-400/30 p-4 text-center">
+              <div id="draws" class="text-2xl font-semibold tracking-tight text-amber-300">0</div>
+              <div class="text-xs text-amber-200 mt-1">Döntetlenek</div>
+            </div>
+            <div class="rounded-xl bg-sky-500/10 ring-1 ring-sky-400/30 p-4 text-center">
+              <div id="awayWins" class="text-2xl font-semibold tracking-tight text-sky-300">0</div>
+              <div class="text-xs text-sky-200 mt-1">Vendég győzelmek</div>
+            </div>
+            <div class="rounded-xl bg-violet-500/10 ring-1 ring-violet-400/30 p-4 text-center">
+              <div id="homeGoalAvg" class="text-2xl font-semibold tracking-tight text-violet-300">0.0</div>
+              <div class="text-xs text-violet-200 mt-1">Hazai gól átlag</div>
+            </div>
+            <div class="rounded-xl bg-indigo-500/10 ring-1 ring-indigo-400/30 p-4 text-center">
+              <div id="awayGoalAvg" class="text-2xl font-semibold tracking-tight text-indigo-300">0.0</div>
+              <div class="text-xs text-indigo-200 mt-1">Vendég gól átlag</div>
+            </div>
+          </div>
+
+          <div class="mt-6 rounded-xl bg-white/5 ring-1 ring-white/10 p-4">
+            <div id="bothTeamsScored" class="text-sm text-zinc-300">Összes mérkőzésből hány mérkőzésen szerzett mind a két csapat gólt: <span class="font-semibold">0%</span></div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="font-medium text-zinc-200 mb-2 inline-flex items-center gap-2">
+              <i data-lucide="trophy" style="width:16px; height:16px; stroke-width:1.5;"></i>
+              Leggyakoribb eredmények
+            </h4>
+            <ol id="frequentResultsList" class="list-decimal list-inside space-y-1 text-sm text-zinc-300"></ol>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-white/10 flex justify-end">
+          <button type="button" class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm text-zinc-200 border border-white/10 hover:bg-white/5" id="closeModal">
+            <i data-lucide="x" style="width:16px; height:16px; stroke-width:1.5;"></i>
+            Bezárás
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
