@@ -20,10 +20,9 @@ class WinMixApp {
 
     // Configuration
     this.STORAGE_KEY = "winmix_filters_v2"
-    this.SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tssgzrzjxslvqmpxgsss.supabase.co"
-    this.SUPABASE_KEY =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzc2d6cnpqeHNsdnFtcHhnc3NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDQ0NzksImV4cCI6MjA3MDQyMDQ3OX0.x3dwO-gt7bp4-uM-lMktVxFdu-RaRgN8N5DM8-mqofI"
+    // Supabase credentials must be provided via runtime configuration (e.g., data-* attributes) if used
+    this.SUPABASE_URL = null
+    this.SUPABASE_KEY = null
 
     // DOM elements cache
     this.elements = {}
@@ -98,11 +97,11 @@ class WinMixApp {
   }
 
   initSupabase() {
-    if (typeof window.supabase !== "undefined") {
+    if (typeof window.supabase !== "undefined" && this.SUPABASE_URL && this.SUPABASE_KEY) {
       const { createClient } = window.supabase
       this.supabaseClient = createClient(this.SUPABASE_URL, this.SUPABASE_KEY)
     } else {
-      console.warn("Supabase not available, using sample data only")
+      console.warn("Supabase not configured or not available, using sample data only")
       this.supabaseClient = null
     }
   }

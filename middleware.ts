@@ -67,9 +67,9 @@ export async function middleware(request: NextRequest) {
   // Content Security Policy
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
+    script-src 'self' https://unpkg.com https://cdn.jsdelivr.net;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https: http:;
+    img-src 'self' blob: data: https:;
     font-src 'self' https://fonts.gstatic.com;
     connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.vercel.com;
     frame-ancestors 'none';
@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
 
   // Performance headers
   response.headers.set("X-DNS-Prefetch-Control", "on")
-  response.headers.set("X-Powered-By", "WinMix")
+  // Remove X-Powered-By to avoid leaking technology stack
 
   // Handle Supabase auth for protected routes
   if (request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/admin")) {

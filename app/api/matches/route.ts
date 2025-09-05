@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
+import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
 import { apiRateLimit } from "@/lib/rate-limit"
 
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     const queryParams = Object.fromEntries(url.searchParams)
     const validatedQuery = QuerySchema.parse(queryParams)
 
-    // Create Supabase client
+    // Create Supabase client (anon key for reads)
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -93,9 +94,32 @@ export async function GET(request: NextRequest) {
     if (validatedQuery.league) {
       query = query.eq("league", validatedQuery.league)
     }
+
+    // BTTS filter: true => both teams scored (>0), false => at least one team scored 0
     if (validatedQuery.btts !== undefined) {
-      // This would need to be calculated based on goals
-      query = query.gt("full_time_home_goals", 0).gt("full_time_away_goals", 0)
+      if (validatedQuery.btts === true) {
+        query = query.gt("full_time_home_goals", 0).gt("full_time_away_goals", 0)
+      } else {
+        query = query.or("full_time_home_goals.eq.0,full_time_away_goals.eq.0")
+      }
+    }
+
+    // Comeback filter: true => halftime leader differs from fulltime leader (no draws),
+    // false => halftime draw OR fulltime draw OR same leader at HT and FT
+    if (validatedQuery.comeback !== undefined) {
+      if (validatedQuery.comeback === true) {
+        query = query.or(
+          "and(half_time_home_goals.gt.half_time_away_goals,full_time_home_goals.lt.full_time_away_goals)," +
+            "and(half_time_home_goals.lt.half_time_away_goals,full_time_home_goals.gt.full_time_away_goals)",
+        )
+      } else {
+        query = query.or(
+          "half_time_home_goals.eq.half_time_away_goals," +
+            "full_time_home_goals.eq.full_time_away_goals," +
+            "and(half_time_home_goals.gt.half_time_away_goals,full_time_home_goals.gt.full_time_away_goals)," +
+            "and(half_time_home_goals.lt.half_time_away_goals,full_time_home_goals.lt.full_time_away_goals)"
+        )
+      }
     }
 
     const { data, error, count } = await query
@@ -152,13 +176,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase client with service role for write operations
-    const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-      },
-    })
+    // Use createClient from @supabase/supabase-js for service role operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Insert match with proper data sanitization
     const { data, error } = await supabase
