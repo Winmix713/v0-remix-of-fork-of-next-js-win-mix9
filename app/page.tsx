@@ -287,7 +287,7 @@ export default function HomePage() {
 
         console.log("[v0] Initial data loading completed")
       } catch (supabaseError) {
-        console.error("[v0] Supabase error, falling back to sample data:", supabaseError)
+        console.warn("[v0] Supabase unavailable, using sample data:", supabaseError.message)
         await loadSampleData()
       }
     } catch (error) {

@@ -8,6 +8,7 @@ const nextConfig = {
     // Enable TypeScript error checking during builds
     ignoreBuildErrors: false,
   },
+  poweredByHeader: false,
   images: {
     unoptimized: false,
     domains: ['localhost'],
@@ -16,27 +17,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-        ],
-      },
-    ];
-  },
+  // Security headers are handled in middleware.ts to avoid duplication
 }
 
 export default nextConfig
